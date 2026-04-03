@@ -4,6 +4,9 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>RISYADH - MEDIA COMPRESSOR</title>
+    
+    <script src="https://cdn.jsdelivr.net/npm/coi-serviceworker@0.1.6/coi-serviceworker.min.js"></script>
+    
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Space+Grotesk:wght@300;700;900&display=swap" rel="stylesheet">
@@ -209,6 +212,13 @@
 
             try {
                 if (isVideo) {
+                    // Pengecekan ekstra kalau browser masih ngeyel
+                    if (typeof SharedArrayBuffer === 'undefined') {
+                        alert("Sistem mengaktifkan jalur aman. Halaman akan dimuat ulang sekali...");
+                        window.location.reload();
+                        return;
+                    }
+
                     loadingText.innerText = "LOADING CORE ENGINE...";
                     
                     if (!ffmpeg.isLoaded()) {
