@@ -9,7 +9,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;800&family=Space+Grotesk:wght@300;700;900&display=swap" rel="stylesheet">
     
-    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.10.1/dist/ffmpeg.min.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+    <script src="https://unpkg.com/@ffmpeg/util@0.12.1/dist/umd/index.js"></script>
 
     <style>
         /* --- VARIABLES & PALETTE BRUTALISM RISYADH --- */
@@ -157,8 +158,10 @@
     <canvas id="canvas" style="display: none;"></canvas>
 
     <script>
-        const { createFFmpeg, fetchFile } = FFmpeg;
-        const ffmpeg = createFFmpeg({ log: true });
+        // Setup API Baru FFmpeg v12
+        const { FFmpeg } = window.FFmpeg;
+        const { fetchFile } = window.FFmpegUtil;
+        let ffmpeg = null;
 
         const mediaInput = document.getElementById('mediaInput');
         const uploadBox = document.getElementById('uploadBox');
@@ -211,28 +214,27 @@
             try {
                 if (isVideo) {
                     
-                    // Pengecekan Bersih: Kalau masih error, tampilkan alert biasa tanpa looping!
-                    if (typeof SharedArrayBuffer === 'undefined') {
-                        alert("Gagal memproses video! Server Vercel masih memuat versi lama web kamu. SOLUSI: Tutup tab ini, buka Google Chrome baru dalam mode TAB SAMARAN (Incognito), lalu buka link web kamu di situ.");
-                        resetUI();
-                        return;
-                    }
-
-                    loadingText.innerText = "LOADING CORE ENGINE...";
-                    
-                    if (!ffmpeg.isLoaded()) {
-                        await ffmpeg.load();
+                    if (!ffmpeg) {
+                        loadingText.innerText = "LOADING CORE ENGINE (NO SAB)...";
+                        ffmpeg = new FFmpeg();
+                        
+                        // Memanggil versi SINGLE-THREAD (Tidak butuh SharedArrayBuffer sama sekali)
+                        await ffmpeg.load({
+                            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+                            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
+                        });
                     }
 
                     loadingText.innerText = "COMPRESSING VIDEO (MAY TAKE A WHILE)...";
                     
-                    ffmpeg.FS('writeFile', 'input.mp4', await fetchFile(selectedFile));
+                    await ffmpeg.writeFile('input.mp4', await fetchFile(selectedFile));
                     
                     const crfValue = Math.round(45 - (qualitySlider.value * 25)); 
 
-                    await ffmpeg.run('-i', 'input.mp4', '-vcodec', 'libx264', '-crf', crfValue.toString(), '-preset', 'ultrafast', 'output.mp4');
+                    // Eksekusi Kompresi
+                    await ffmpeg.exec(['-i', 'input.mp4', '-vcodec', 'libx264', '-crf', crfValue.toString(), '-preset', 'ultrafast', 'output.mp4']);
 
-                    const data = ffmpeg.FS('readFile', 'output.mp4');
+                    const data = await ffmpeg.readFile('output.mp4');
                     const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
                     const videoUrl = URL.createObjectURL(videoBlob);
                     
