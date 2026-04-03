@@ -158,10 +158,20 @@
     <canvas id="canvas" style="display: none;"></canvas>
 
     <script>
-        // PERBAIKAN DI SINI: Menyebut FFmpegWASM agar script tidak crash
+        // INISIALISASI FFMPEG
         const { FFmpeg } = window.FFmpegWASM;
         const { fetchFile } = window.FFmpegUtil;
-        let ffmpeg = null;
+        let ffmpeg = new FFmpeg();
+
+        // TAMBAHAN: Biar progresnya kelihatan di HP!
+        ffmpeg.on('progress', ({ progress, time }) => {
+            const loadingText = document.getElementById('loadingText');
+            // Menghitung persentase dari progres (0.0 sampai 1.0)
+            const percent = Math.round(progress * 100);
+            if(percent > 0 && percent <= 100) {
+                loadingText.innerText = `COMPRESSING VIDEO: ${percent}%...`;
+            }
+        });
 
         const mediaInput = document.getElementById('mediaInput');
         const uploadBox = document.getElementById('uploadBox');
@@ -213,19 +223,22 @@
 
             try {
                 if (isVideo) {
-                    
-                    if (!ffmpeg) {
-                        loadingText.innerText = "LOADING CORE ENGINE (SINGLE THREAD)...";
-                        ffmpeg = new FFmpeg();
-                        
-                        // Memanggil versi SINGLE-THREAD (Tidak butuh SharedArrayBuffer sama sekali)
-                        await ffmpeg.load({
-                            coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
-                            wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
-                        });
+                    // PERBAIKAN: Selalu cek "loaded" agar tidak gagal kalau internet lambat
+                    if (!ffmpeg.loaded) {
+                        try {
+                            loadingText.innerText = "DOWNLOADING ENGINE (~25MB)... PASTIKAN INTERNET STABIL";
+                            await ffmpeg.load({
+                                coreURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.js',
+                                wasmURL: 'https://unpkg.com/@ffmpeg/core@0.12.6/dist/umd/ffmpeg-core.wasm'
+                            });
+                        } catch (downloadError) {
+                            alert("Koneksi gagal saat mendownload mesin kompresor (sekitar 25MB). Pastikan internet kamu stabil lalu coba lagi!");
+                            resetUI();
+                            return;
+                        }
                     }
 
-                    loadingText.innerText = "COMPRESSING VIDEO (MAY TAKE A WHILE)...";
+                    loadingText.innerText = "PREPARING VIDEO DATA...";
                     
                     await ffmpeg.writeFile('input.mp4', await fetchFile(selectedFile));
                     
@@ -234,6 +247,7 @@
                     // Eksekusi Kompresi
                     await ffmpeg.exec(['-i', 'input.mp4', '-vcodec', 'libx264', '-crf', crfValue.toString(), '-preset', 'ultrafast', 'output.mp4']);
 
+                    loadingText.innerText = "FINISHING UP...";
                     const data = await ffmpeg.readFile('output.mp4');
                     const videoBlob = new Blob([data.buffer], { type: 'video/mp4' });
                     const videoUrl = URL.createObjectURL(videoBlob);
