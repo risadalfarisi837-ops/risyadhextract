@@ -158,8 +158,8 @@
     <canvas id="canvas" style="display: none;"></canvas>
 
     <script>
-        // Setup API Baru FFmpeg v12
-        const { FFmpeg } = window.FFmpeg;
+        // PERBAIKAN DI SINI: Menyebut FFmpegWASM agar script tidak crash
+        const { FFmpeg } = window.FFmpegWASM;
         const { fetchFile } = window.FFmpegUtil;
         let ffmpeg = null;
 
@@ -215,7 +215,7 @@
                 if (isVideo) {
                     
                     if (!ffmpeg) {
-                        loadingText.innerText = "LOADING CORE ENGINE (NO SAB)...";
+                        loadingText.innerText = "LOADING CORE ENGINE (SINGLE THREAD)...";
                         ffmpeg = new FFmpeg();
                         
                         // Memanggil versi SINGLE-THREAD (Tidak butuh SharedArrayBuffer sama sekali)
